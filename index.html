@@ -8,7 +8,7 @@
         body { font-family: -apple-system, sans-serif; padding: 15px; color: #333; background: #f4f7f6; }
         .container { max-width: 600px; margin: auto; }
         .card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        textarea { width: 100%; height: 100px; margin-bottom: 10px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        textarea { width: 100%; height: 120px; margin-bottom: 10px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         button { padding: 14px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; font-size: 14px; }
         .blue { background: #2563eb; color: #fff; }
@@ -90,49 +90,54 @@ function processText() {
     const status = document.getElementById('status');
     if(!raw) return;
 
-    // 1. Convert Word Numbers to Digits
-    let cleanText = raw;
-    const wordNumbers = { 'ten': '10', 'twenty': '20', 'thirty': '30', 'forty': '40', 'fifty': '50', 'sixty': '60', 'seventy': '70', 'eighty': '80', 'ninety': '90' };
-    for (let word in wordNumbers) {
-        cleanText = cleanText.replace(new RegExp(word, 'g'), wordNumbers[word]);
-    }
-
-    // 2. Extract All Numbers
-    // This finds numbers even if stuck to words like "jan$21" -> ["21"]
-    const allNumbers = cleanText.match(/\d+(\.\d{2})?/g);
+    // 1. FIND ALL NUMBERS
+    const allNumbers = raw.match(/\d+(\.\d{2})?/g);
     
-    // 3. Extract Dates (to ignore them in the price search)
-    const dateMatch = cleanText.match(/\d{1,2}[\/\s](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2})/g);
+    // 2. FIND DATES (e.g., 8/12, 12/12)
+    const dateMatch = raw.match(/\d{1,2}\/\d{1,2}/g);
     
     let price = 0;
     if (allNumbers) {
-        // We look for a number that ISN'T the start of one of our dates
-        // Usually, the price is the last number in the message
-        for (let i = allNumbers.length - 1; i >= 0; i--) {
-            let n = allNumbers[i];
-            // If it's a small number or has a decimal, it's likely our price
-            if (n.length < 5) {
-                price = parseFloat(n);
-                break;
-            }
+        // Find the LARGEST number that isn't a year (like 2026)
+        // This picks "96" instead of "48" from your message
+        const possiblePrices = allNumbers.filter(n => n.length < 5 && !raw.includes('/' + n) && !raw.includes(n + '/'));
+        if (possiblePrices.length > 0) {
+            price = Math.max(...possiblePrices.map(n => parseFloat(n)));
         }
     }
 
     let desc = "TAXI TRIPS";
     if (dateMatch) {
-        if (dateMatch.length >= 2) {
-            desc = `TRIPS FROM ${dateMatch[0]} TO ${dateMatch[dateMatch.length - 1]}`;
-        } else {
-            desc = `TRIPS ON ${dateMatch[0]}`;
-        }
+        // Use the first and last dates found in the text
+        desc = `TRIPS FROM ${dateMatch[0]} TO ${dateMatch[dateMatch.length - 1]}`;
     }
 
     if (price > 0) {
         items.push({ d: desc.toUpperCase(), p: price });
-        status.innerText = "✅ ADDED: " + desc.toUpperCase() + " ($" + price + ")";
+        status.innerText = "✅ Added: $" + price;
         status.style.color = "green";
         document.getElementById('rawText').value = "";
         render();
     } else {
-        status.innerText = "❌ COULD NOT FIND PRICE. TRY MANUAL.";
-        status.style.color =
+        status.innerText = "❌ No price found. Use Manual Entry.";
+        status.style.color = "red";
+    }
+}
+
+function render() {
+    const now = new Date();
+    document.getElementById('invId').innerText = now.getTime().toString().slice(-5);
+    document.getElementById('invDate').innerText = now.toLocaleDateString('en-GB');
+    let total = 0;
+    let html = "";
+    items.forEach(i => {
+        total += i.p;
+        html += `<tr><td>${i.d}</td><td style="text-align:right">$${i.p.toFixed(2)}</td></tr>`;
+    });
+    document.getElementById('rows').innerHTML = html;
+    document.getElementById('grandTotal').innerText = "$" + total.toFixed(2);
+    document.getElementById('invoice').style.display = items.length > 0 ? 'block' : 'none';
+}
+</script>
+</body>
+</html>
