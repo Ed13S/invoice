@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Taxi Invoice Automator (AI Enabled)</title>
+    <title>Invoice Automator</title>
     <style>
         body { font-family: -apple-system, sans-serif; padding: 15px; color: #333; background: #f0f2f5; line-height: 1.5; }
         .container { max-width: 600px; margin: auto; }
@@ -12,7 +12,7 @@
         
         .btn-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
         button { flex: 1; min-width: 90px; padding: 14px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; transition: 0.2s; }
-        .ai-btn { background: #2563eb; color: white; } 
+        .primary-btn { background: #2563eb; color: white; } 
         .manual-btn { background: #64748b; color: white; }
         .undo-btn { background: #f59e0b; color: white; }
         .reset-btn { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
@@ -39,20 +39,22 @@
 
 <div class="container">
     <div class="no-print">
-        <h3 style="margin-top:0; color: #2563eb;">AI Taxi Invoice Maker</h3>
-        <textarea id="rawText" placeholder="Paste messy trip data, DiDi logs, or messages here..."></textarea>
+        <h3 style="margin-top:0; color: #2563eb;">Invoice Maker</h3>
+        <textarea id="rawText" placeholder="Paste your message here..."></textarea>
         
         <div class="btn-row">
-            <button class="ai-btn" onclick="callGemini()">Analyze & Add</button>
-            <button class="manual-btn" onclick="toggleManual()">Manual</button>
+            <button class="primary-btn" onclick="callProcessor()">Process & Add</button>
+            <button class="manual-btn" onclick="toggleManual()">Manual Entry</button>
             <button class="undo-btn" onclick="undoLast()">Undo</button>
             <button class="reset-btn" onclick="clearInvoice()">Clear All</button>
         </div>
 
         <div id="manualForm">
-            <input type="text" id="mDesc" class="m-input" placeholder="Trips from 01/01 to 05/01">
+            <label>Description:</label>
+            <input type="text" id="mDesc" class="m-input" value="Trips from  to ">
+            <label>Amount:</label>
             <input type="number" step="0.01" id="mPrice" class="m-input" placeholder="0.00">
-            <button class="ai-btn" style="width:100%; background: #059669;" onclick="addManualItem()">+ Add to Invoice</button>
+            <button class="primary-btn" style="width:100%; background: #059669;" onclick="addManualItem()">+ Add to Invoice</button>
         </div>
         
         <div id="status" style="margin-top:10px; font-weight:bold; font-size: 14px;"></div>
@@ -78,7 +80,8 @@
 </div>
 
 <script>
-const GEMINI_KEY = "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A";
+// Hidden Key used for processing
+const KEY = "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A";
 let items = [];
 
 function clearInvoice() {
@@ -105,22 +108,23 @@ function addManualItem() {
     if(d && p) {
         items.push({ d: d, p: parseFloat(p) });
         render();
-        document.getElementById('mDesc').value = "";
+        // Reset manual field but keep the template for next time
         document.getElementById('mPrice').value = "";
+        document.getElementById('mDesc').value = "Trips from  to ";
         document.getElementById('manualForm').style.display = 'none';
     }
 }
 
-async function callGemini() {
+async function callProcessor() {
     const textInput = document.getElementById('rawText').value;
     const status = document.getElementById('status');
     if(!textInput) return;
 
-    status.innerText = "⏳ AI is processing...";
+    status.innerText = "⏳ Processing...";
     status.style.color = "#2563eb";
 
     try {
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${KEY}`;
         const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -130,17 +134,17 @@ async function callGemini() {
         });
 
         const data = await response.json();
-        const aiText = data.candidates[0].content.parts[0].text;
-        const match = aiText.match(/\{.*\}/s);
+        const resultText = data.candidates[0].content.parts[0].text;
+        const match = resultText.match(/\{.*\}/s);
         
         const cleanJson = JSON.parse(match[0]);
         items.push(cleanJson);
         render();
-        status.innerText = "✅ AI Added: " + cleanJson.d;
+        status.innerText = "✅ Successfully Added";
         status.style.color = "green";
         document.getElementById('rawText').value = "";
     } catch (e) {
-        status.innerText = "❌ AI could not read that. Try Manual Entry.";
+        status.innerText = "❌ Could not process. Please use Manual Entry.";
         status.style.color = "red";
     }
 }
