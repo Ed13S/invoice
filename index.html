@@ -90,44 +90,46 @@ function processText() {
     const status = document.getElementById('status');
     if(!raw) return;
 
-    // 1. Find the Amount
+    // 1. EXTRACT PRICE
     let amount = 0;
     
-    // Check for written numbers
+    // Map of text numbers
     const words = { 'ten': 10, 'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90, 'hundred': 100 };
-    for (let word in words) {
-        if (raw.includes(word)) amount = words[word];
+    for (let word in words) { if (raw.includes(word)) amount = words[word]; }
+
+    if (amount === 0) {
+        // Find any number, even if stuck to letters (like jan$21)
+        const allNums = raw.match(/\d+(\.\d{2})?/g);
+        if (allNums) {
+            // Filter out things that look like dates (1/1 or 2026) to find the price
+            const possiblePrices = allNums.filter(n => !n.includes('/') && n.length < 5);
+            if (possiblePrices.length > 0) {
+                amount = parseFloat(possiblePrices[possiblePrices.length - 1]);
+            }
+        }
     }
 
-    // Check for digits (e.g., $21, 21.00, 21)
-    const digitMatch = raw.match(/\$?\d+(\.\d{2})?/g);
-    if (digitMatch && amount === 0) {
-        // Grab the last number found (usually the price in a message)
-        let lastNum = digitMatch[digitMatch.length - 1].replace('$', '');
-        amount = parseFloat(lastNum);
-    }
-
-    // 2. Find Dates
-    const datePattern = /\d{1,2}(\/|\s)(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2})/g;
+    // 2. EXTRACT DATES
+    const datePattern = /\d{1,2}[\/\s](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2})/g;
     const datesFound = raw.match(datePattern);
     
-    let description = "Taxi Trips";
+    let description = "TAXI TRIPS";
     if (datesFound) {
         if (datesFound.length >= 2) {
-            description = `Trips from ${datesFound[0]} to ${datesFound[datesFound.length - 1]}`;
+            description = `TRIPS FROM ${datesFound[0]} TO ${datesFound[datesFound.length - 1]}`;
         } else {
-            description = `Trips on ${datesFound[0]}`;
+            description = `TRIPS ON ${datesFound[0]}`;
         }
     }
 
     if (amount > 0) {
         items.push({ d: description.toUpperCase(), p: amount });
-        status.innerText = "✅ Added: " + description.toUpperCase() + " ($" + amount + ")";
+        status.innerText = "✅ ADDED: $" + amount;
         status.style.color = "green";
         document.getElementById('rawText').value = "";
         render();
     } else {
-        status.innerText = "❌ Could not find a price. Please use Manual Entry.";
+        status.innerText = "❌ COULD NOT FIND PRICE. TRY MANUAL ENTRY.";
         status.style.color = "red";
     }
 }
