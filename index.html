@@ -13,14 +13,14 @@
         button { padding: 14px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; font-size: 14px; }
         .blue { background: #2563eb; color: #fff; }
         .gray { background: #64748b; color: #fff; }
-        .red { background: #fee2e2; color: #dc2626; }
+        .red { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
         .orange { background: #f59e0b; color: #fff; }
         #manualForm { display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
         input { width: 100%; padding: 12px; margin: 5px 0 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         #invoice { display: none; background: white; padding: 30px; border: 1px solid #eee; margin-top: 20px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         td, th { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
-        .total { text-align: right; font-size: 20px; font-weight: bold; color: #059669; }
+        .total { text-align: right; font-size: 20px; font-weight: bold; color: #059669; border-top: 2px solid #000; padding-top: 10px; }
         @media print { .no-print { display: none !important; } #invoice { display: block !important; border: none; } }
     </style>
 </head>
@@ -44,7 +44,7 @@
             <input type="number" step="0.01" id="mPrice" placeholder="0.00">
             <button class="blue" style="width:100%" onclick="addManual()">+ Add Line</button>
         </div>
-        <p id="status" style="font-size: 12px; margin-top: 10px;"></p>
+        <p id="status" style="font-size: 13px; margin-top: 10px; font-weight: bold;"></p>
     </div>
 
     <div id="invoice">
@@ -64,14 +64,13 @@
 
 <script>
 let items = [];
-const KEY = "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A";
 
 function toggleManual() {
     let f = document.getElementById('manualForm');
     f.style.display = f.style.display === 'block' ? 'none' : 'block';
 }
 
-function clearAll() { items = []; render(); }
+function clearAll() { items = []; render(); document.getElementById('status').innerText = ""; }
 function undo() { items.pop(); render(); }
 
 function addManual() {
@@ -86,38 +85,51 @@ function addManual() {
     }
 }
 
-// THE SMART PROCESSOR
-async function processText() {
-    const raw = document.getElementById('rawText').value;
+function processText() {
+    const raw = document.getElementById('rawText').value.toLowerCase();
+    const status = document.getElementById('status');
     if(!raw) return;
-    document.getElementById('status').innerText = "Processing...";
 
-    try {
-        // Try AI First
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${KEY}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts: [{ text: `Extract trip dates and total price from: "${raw}". Reply ONLY with JSON: {"d": "Trips from DD/MM to DD/MM", "p": 0.00}` }] }] })
-        });
-        const data = await response.json();
-        const json = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{.*\}/s)[0]);
-        items.push(json);
-        document.getElementById('status').innerText = "✅ Added via AI";
-    } catch (e) {
-        // FALLBACK: Local Logic (If AI is blocked)
-        const prices = raw.match(/\d+\.\d{2}/g);
-        const dates = raw.match(/\d{1,2}\/\d{1,2}/g);
-        if(prices) {
-            let total = prices.reduce((a, b) => a + parseFloat(b), 0);
-            let desc = dates ? `Trips on ${dates[0]}` : "Taxi Trips";
-            items.push({ d: desc, p: total });
-            document.getElementById('status').innerText = "✅ Added via Local Scan (AI blocked)";
+    // 1. Find the Amount
+    let amount = 0;
+    
+    // Check for written numbers
+    const words = { 'ten': 10, 'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90, 'hundred': 100 };
+    for (let word in words) {
+        if (raw.includes(word)) amount = words[word];
+    }
+
+    // Check for digits (e.g., $21, 21.00, 21)
+    const digitMatch = raw.match(/\$?\d+(\.\d{2})?/g);
+    if (digitMatch && amount === 0) {
+        // Grab the last number found (usually the price in a message)
+        let lastNum = digitMatch[digitMatch.length - 1].replace('$', '');
+        amount = parseFloat(lastNum);
+    }
+
+    // 2. Find Dates
+    const datePattern = /\d{1,2}(\/|\s)(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2})/g;
+    const datesFound = raw.match(datePattern);
+    
+    let description = "Taxi Trips";
+    if (datesFound) {
+        if (datesFound.length >= 2) {
+            description = `Trips from ${datesFound[0]} to ${datesFound[datesFound.length - 1]}`;
         } else {
-            document.getElementById('status').innerText = "❌ Manual Entry required.";
+            description = `Trips on ${datesFound[0]}`;
         }
     }
-    document.getElementById('rawText').value = "";
-    render();
+
+    if (amount > 0) {
+        items.push({ d: description.toUpperCase(), p: amount });
+        status.innerText = "✅ Added: " + description.toUpperCase() + " ($" + amount + ")";
+        status.style.color = "green";
+        document.getElementById('rawText').value = "";
+        render();
+    } else {
+        status.innerText = "❌ Could not find a price. Please use Manual Entry.";
+        status.style.color = "red";
+    }
 }
 
 function render() {
