@@ -3,155 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice Automator</title>
+    <title>Invoice Maker</title>
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 15px; color: #333; background: #f0f2f5; line-height: 1.5; }
+        body { font-family: -apple-system, sans-serif; padding: 15px; color: #333; background: #f4f7f6; }
         .container { max-width: 600px; margin: auto; }
-        .no-print { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        textarea { width: 100%; height: 120px; margin-bottom: 15px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        
-        .btn-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
-        button { flex: 1; min-width: 90px; padding: 14px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; transition: 0.2s; }
-        .primary-btn { background: #2563eb; color: white; } 
-        .manual-btn { background: #64748b; color: white; }
-        .undo-btn { background: #f59e0b; color: white; }
-        .reset-btn { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
-        .print-btn { background: #000; color: white; width: 100%; margin-top: 20px; font-size: 18px; display: none; padding: 16px; border-radius: 10px; }
-        
-        #manualForm { display: none; background: #f8fafc; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; }
-        .m-input { width: 100%; padding: 12px; margin: 5px 0 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-
-        #invoice { display: none; padding: 40px; border: 1px solid #ddd; background: white; border-radius: 4px; }
-        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; }
-        table { width: 100%; border-collapse: collapse; margin: 30px 0; }
-        th { text-align: left; background: #f8f9fa; padding: 12px; border-bottom: 2px solid #ddd; }
-        td { padding: 12px; border-bottom: 1px solid #eee; }
-        .total-row { text-align: right; font-size: 24px; font-weight: bold; color: #059669; border-top: 2px solid #000; padding-top: 10px; }
-
-        @media print {
-            body { background: white; padding: 0; }
-            .no-print, #manualForm, .btn-row { display: none !important; }
-            #invoice { display: block !important; border: none !important; width: 100% !important; box-shadow: none; }
-        }
+        .card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        textarea { width: 100%; height: 100px; margin-bottom: 10px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        button { padding: 14px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; font-size: 14px; }
+        .blue { background: #2563eb; color: #fff; }
+        .gray { background: #64748b; color: #fff; }
+        .red { background: #fee2e2; color: #dc2626; }
+        .orange { background: #f59e0b; color: #fff; }
+        #manualForm { display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+        input { width: 100%; padding: 12px; margin: 5px 0 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        #invoice { display: none; background: white; padding: 30px; border: 1px solid #eee; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        td, th { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        .total { text-align: right; font-size: 20px; font-weight: bold; color: #059669; }
+        @media print { .no-print { display: none !important; } #invoice { display: block !important; border: none; } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="no-print">
-        <h3 style="margin-top:0; color: #2563eb;">Invoice Maker</h3>
+    <div class="card no-print">
+        <h3 style="margin-top:0">Invoice Maker</h3>
         <textarea id="rawText" placeholder="Paste your message here..."></textarea>
-        
-        <div class="btn-row">
-            <button class="primary-btn" onclick="callProcessor()">Process & Add</button>
-            <button class="manual-btn" onclick="toggleManual()">Manual Entry</button>
-            <button class="undo-btn" onclick="undoLast()">Undo</button>
-            <button class="reset-btn" onclick="clearInvoice()">Clear All</button>
+        <div class="btn-grid">
+            <button class="blue" onclick="processText()">Process & Add</button>
+            <button class="gray" onclick="toggleManual()">Manual Entry</button>
+            <button class="orange" onclick="undo()">Undo Last</button>
+            <button class="red" onclick="clearAll()">Clear All</button>
         </div>
 
         <div id="manualForm">
             <label>Description:</label>
-            <input type="text" id="mDesc" class="m-input" value="Trips from  to ">
-            <label>Amount:</label>
-            <input type="number" step="0.01" id="mPrice" class="m-input" placeholder="0.00">
-            <button class="primary-btn" style="width:100%; background: #059669;" onclick="addManualItem()">+ Add to Invoice</button>
+            <input type="text" id="mDesc" value="Trips from  to ">
+            <label>Amount ($):</label>
+            <input type="number" step="0.01" id="mPrice" placeholder="0.00">
+            <button class="blue" style="width:100%" onclick="addManual()">+ Add Line</button>
         </div>
-        
-        <div id="status" style="margin-top:10px; font-weight:bold; font-size: 14px;"></div>
+        <p id="status" style="font-size: 12px; margin-top: 10px;"></p>
     </div>
 
     <div id="invoice">
-        <div class="header">
-            <div><h1 style="margin:0; font-size: 32px;">INVOICE</h1><p>Inv #: <span id="invId"></span></p></div>
-            <div style="text-align:right">
-                <strong>Taxi Trips</strong><br>
-                ABN: 15 685 270 239<br>
-                Phone: 0404 843 222
-            </div>
+        <div style="display:flex; justify-content:space-between; border-bottom: 2px solid #000; padding-bottom: 10px;">
+            <div><h2 style="margin:0">INVOICE</h2><small>ID: <span id="invId"></span></small></div>
+            <div style="text-align:right"><strong>Taxi Trips</strong><br>ABN: 15 685 270 239</div>
         </div>
-        <div style="margin: 25px 0;"><strong>Bill To:</strong> Keqin Dai<br>Date: <span id="invDate"></span></div>
+        <p><strong>Bill To:</strong> Keqin Dai<br>Date: <span id="invDate"></span></p>
         <table>
             <thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
             <tbody id="rows"></tbody>
         </table>
-        <div class="total-row">Total: <span id="grandTotal"></span></div>
-        <button id="pBtn" class="print-btn" onclick="window.print()">PRINT / SAVE PDF</button>
+        <div class="total">Total: <span id="grandTotal"></span></div>
+        <button class="blue no-print" style="width:100%; margin-top:20px" onclick="window.print()">Print / Save PDF</button>
     </div>
 </div>
 
 <script>
-// Hidden Key used for processing
-const KEY = "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A";
 let items = [];
-
-function clearInvoice() {
-    items = [];
-    document.getElementById('rawText').value = "";
-    document.getElementById('status').innerText = "";
-    render();
-}
-
-function undoLast() {
-    items.pop();
-    render();
-    document.getElementById('status').innerText = "Last entry removed.";
-}
+const KEY = "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A";
 
 function toggleManual() {
-    const f = document.getElementById('manualForm');
+    let f = document.getElementById('manualForm');
     f.style.display = f.style.display === 'block' ? 'none' : 'block';
 }
 
-function addManualItem() {
-    const d = document.getElementById('mDesc').value;
-    const p = document.getElementById('mPrice').value;
-    if(d && p) {
+function clearAll() { items = []; render(); }
+function undo() { items.pop(); render(); }
+
+function addManual() {
+    let d = document.getElementById('mDesc').value;
+    let p = document.getElementById('mPrice').value;
+    if(p) {
         items.push({ d: d, p: parseFloat(p) });
-        render();
-        // Reset manual field but keep the template for next time
         document.getElementById('mPrice').value = "";
         document.getElementById('mDesc').value = "Trips from  to ";
-        document.getElementById('manualForm').style.display = 'none';
+        toggleManual();
+        render();
     }
 }
 
-async function callProcessor() {
-    const textInput = document.getElementById('rawText').value;
-    const status = document.getElementById('status');
-    if(!textInput) return;
-
-    status.innerText = "⏳ Processing...";
-    status.style.color = "#2563eb";
+// THE SMART PROCESSOR
+async function processText() {
+    const raw = document.getElementById('rawText').value;
+    if(!raw) return;
+    document.getElementById('status').innerText = "Processing...";
 
     try {
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${KEY}`;
-        const response = await fetch(url, {
+        // Try AI First
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${KEY}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: `Identify trip dates and total cost in: "${textInput}". Return ONLY a JSON object: {"d": "Trips from DD/MM to DD/MM", "p": 0.00}` }] }]
-            })
+            body: JSON.stringify({ contents: [{ parts: [{ text: `Extract trip dates and total price from: "${raw}". Reply ONLY with JSON: {"d": "Trips from DD/MM to DD/MM", "p": 0.00}` }] }] })
         });
-
         const data = await response.json();
-        const resultText = data.candidates[0].content.parts[0].text;
-        const match = resultText.match(/\{.*\}/s);
-        
-        const cleanJson = JSON.parse(match[0]);
-        items.push(cleanJson);
-        render();
-        status.innerText = "✅ Successfully Added";
-        status.style.color = "green";
-        document.getElementById('rawText').value = "";
+        const json = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{.*\}/s)[0]);
+        items.push(json);
+        document.getElementById('status').innerText = "✅ Added via AI";
     } catch (e) {
-        status.innerText = "❌ Could not process. Please use Manual Entry.";
-        status.style.color = "red";
+        // FALLBACK: Local Logic (If AI is blocked)
+        const prices = raw.match(/\d+\.\d{2}/g);
+        const dates = raw.match(/\d{1,2}\/\d{1,2}/g);
+        if(prices) {
+            let total = prices.reduce((a, b) => a + parseFloat(b), 0);
+            let desc = dates ? `Trips on ${dates[0]}` : "Taxi Trips";
+            items.push({ d: desc, p: total });
+            document.getElementById('status').innerText = "✅ Added via Local Scan (AI blocked)";
+        } else {
+            document.getElementById('status').innerText = "❌ Manual Entry required.";
+        }
     }
+    document.getElementById('rawText').value = "";
+    render();
 }
 
 function render() {
     const now = new Date();
-    document.getElementById('invId').innerText = now.getTime().toString().slice(-6);
+    document.getElementById('invId').innerText = now.getTime().toString().slice(-5);
     document.getElementById('invDate').innerText = now.toLocaleDateString('en-GB');
     let total = 0;
     let html = "";
@@ -161,8 +132,7 @@ function render() {
     });
     document.getElementById('rows').innerHTML = html;
     document.getElementById('grandTotal').innerText = "$" + total.toFixed(2);
-    document.getElementById('invoice').style.display = items.length > 0 ? "block" : "none";
-    document.getElementById('pBtn').style.display = items.length > 0 ? "block" : "none";
+    document.getElementById('invoice').style.display = items.length > 0 ? 'block' : 'none';
 }
 </script>
 </body>
