@@ -7,25 +7,26 @@
     <style>
         body { font-family: -apple-system, sans-serif; padding: 15px; background: #f4f7f6; color: #333; }
         .container { max-width: 600px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         
-        /* The Text Box */
-        textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 10px; display: block !important; }
+        /* The AI Paste Box */
+        textarea { width: 100%; height: 100px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 10px; display: block !important; }
+        
+        input { width: 100%; padding: 12px; margin: 5px 0 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
         
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         button { padding: 15px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; font-size: 14px; }
         .blue { background: #2563eb; color: white; }
+        .green { background: #059669; color: white; }
         .red { background: #fee2e2; color: #dc2626; }
-        .del-btn { color: #dc2626; background: none; border: none; font-size: 12px; cursor: pointer; text-decoration: underline; }
+        .del-btn { color: #dc2626; background: none; border: none; font-size: 12px; cursor: pointer; font-weight: bold; }
 
         #invoice { background: white; padding: 25px; border: 1px solid #eee; margin-top: 20px; border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
-        .total { text-align: right; font-size: 20px; font-weight: bold; border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; }
+        .total { text-align: right; font-size: 20px; font-weight: bold; border-top: 2px solid #333; padding-top: 10px; }
 
-        .settings { margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc; font-size: 12px; }
-        .settings input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-
+        .settings { margin-top: 40px; padding: 15px; border-top: 1px dashed #ccc; font-size: 12px; opacity: 0.7; }
         @media print { .no-print { display: none !important; } #invoice { border: none; width: 100%; padding: 0; } }
     </style>
 </head>
@@ -33,16 +34,17 @@
 
 <div class="container">
     <div class="card no-print">
-        <h3 style="margin-top:0">AI Invoice Helper</h3>
-        
-        <label style="font-size:13px; font-weight:bold;">Paste Trip Message:</label>
-        <textarea id="rawText" placeholder="Example: Week 1, 8/12-12/12, $48..."></textarea>
-        
-        <div class="btn-grid">
-            <button class="blue" onclick="processWithAI()">Process & Add</button>
-            <button class="red" onclick="clearAll()">Clear All Rows</button>
-        </div>
+        <h3 style="margin-top:0">AI Trip Processor</h3>
+        <textarea id="rawText" placeholder="Paste your message here (e.g. Week 1, 8/12-12/12, $48...)"></textarea>
+        <button class="blue" style="width:100%" onclick="processWithAI()">Process & Add with AI</button>
         <p id="status" style="font-size: 13px; margin-top: 10px; font-weight: bold;"></p>
+    </div>
+
+    <div class="card no-print">
+        <h3 style="margin-top:0">Manual Entry (Backup)</h3>
+        <input type="text" id="mDesc" placeholder="Description (e.g. TRIPS 1/1 TO 5/1)">
+        <input type="number" id="mPrice" placeholder="Price ($)">
+        <button class="green" style="width:100%" onclick="addManual()">+ Add Line Manually</button>
     </div>
 
     <div id="invoice">
@@ -53,23 +55,26 @@
         <p><strong>Bill To:</strong> Keqin Dai<br>Date: <span id="invDate"></span></p>
         
         <table>
-            <thead><tr><th>Description</th><th style="text-align:right">Price</th><th class="no-print"></th></tr></thead>
+            <thead><tr><th>Description</th><th style="text-align:right">Price</th><th class="no-print">X</th></tr></thead>
             <tbody id="rows"></tbody>
         </table>
         
         <div class="total">Total: <span id="grandTotal"></span></div>
-        <button class="blue no-print" style="width:100%; margin-top:20px;" onclick="window.print()">Print / Save PDF</button>
+        
+        <div class="btn-grid no-print" style="margin-top:20px;">
+            <button class="blue" onclick="window.print()">Print / PDF</button>
+            <button class="red" onclick="clearAll()">Clear All</button>
+        </div>
     </div>
 
     <div class="card no-print settings">
-        <strong>Settings (Saved to Phone)</strong><br>
+        <strong>Settings</strong><br>
         <label>Gemini API Key:</label>
-        <input type="password" id="apiKeyInput" onchange="saveKey()" placeholder="Enter API Key here...">
+        <input type="password" id="apiKeyInput" onchange="saveKey()" placeholder="Enter Key...">
     </div>
 </div>
 
 <script>
-// INITIAL DATA LOAD
 let items = JSON.parse(localStorage.getItem('taxiInvoiceData')) || [];
 document.getElementById('apiKeyInput').value = localStorage.getItem('userApiKey') || "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A";
 
@@ -77,16 +82,26 @@ render();
 
 function saveKey() {
     localStorage.setItem('userApiKey', document.getElementById('apiKeyInput').value);
-    alert("API Key Saved!");
+}
+
+function addManual() {
+    const d = document.getElementById('mDesc').value;
+    const p = document.getElementById('mPrice').value;
+    if(d && p) {
+        items.push({ d: d.toUpperCase(), p: parseFloat(p) });
+        saveAndRender();
+        document.getElementById('mDesc').value = "";
+        document.getElementById('mPrice').value = "";
+    }
 }
 
 async function processWithAI() {
     const raw = document.getElementById('rawText').value;
     const status = document.getElementById('status');
     const key = document.getElementById('apiKeyInput').value;
-
     if(!raw) return;
-    status.innerText = "Processing...";
+
+    status.innerText = "AI Processing...";
     status.style.color = "blue";
 
     try {
@@ -104,32 +119,33 @@ async function processWithAI() {
         const jsonMatch = text.match(/\[.*\]/s);
         
         if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            items = items.concat(parsed);
-            localStorage.setItem('taxiInvoiceData', JSON.stringify(items));
+            items = items.concat(JSON.parse(jsonMatch[0]));
+            saveAndRender();
             document.getElementById('rawText').value = "";
-            status.innerText = "✅ Added Successfully!";
+            status.innerText = "✅ Done!";
             status.style.color = "green";
-            render();
         }
     } catch (e) {
-        status.innerText = "❌ Error processing. Check API Key.";
+        status.innerText = "❌ AI Error. Check Key.";
         status.style.color = "red";
     }
 }
 
 function deleteRow(idx) {
     items.splice(idx, 1);
-    localStorage.setItem('taxiInvoiceData', JSON.stringify(items));
-    render();
+    saveAndRender();
 }
 
 function clearAll() {
     if(confirm("Clear all rows?")) {
         items = [];
-        localStorage.removeItem('taxiInvoiceData');
-        render();
+        saveAndRender();
     }
+}
+
+function saveAndRender() {
+    localStorage.setItem('taxiInvoiceData', JSON.stringify(items));
+    render();
 }
 
 function render() {
@@ -141,7 +157,7 @@ function render() {
         html += `<tr>
             <td>${item.d}</td>
             <td style="text-align:right">$${item.p.toFixed(2)}</td>
-            <td class="no-print" style="text-align:right"><button class="del-btn" onclick="deleteRow(${idx})">Delete</button></td>
+            <td class="no-print" style="text-align:right"><button class="del-btn" onclick="deleteRow(${idx})">DEL</button></td>
         </tr>`;
     });
     document.getElementById('rows').innerHTML = html;
