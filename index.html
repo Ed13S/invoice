@@ -90,46 +90,49 @@ function processText() {
     const status = document.getElementById('status');
     if(!raw) return;
 
-    // 1. EXTRACT PRICE
     let amount = 0;
     
-    // Map of text numbers
+    // 1. Check for written words (forty, twenty, etc.)
     const words = { 'ten': 10, 'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90, 'hundred': 100 };
-    for (let word in words) { if (raw.includes(word)) amount = words[word]; }
+    for (let word in words) { 
+        if (raw.includes(word)) amount = words[word]; 
+    }
 
+    // 2. Extract Numbers (look for anything following a $ or just hanging out)
     if (amount === 0) {
-        // Find any number, even if stuck to letters (like jan$21)
-        const allNums = raw.match(/\d+(\.\d{2})?/g);
-        if (allNums) {
-            // Filter out things that look like dates (1/1 or 2026) to find the price
-            const possiblePrices = allNums.filter(n => !n.includes('/') && n.length < 5);
-            if (possiblePrices.length > 0) {
-                amount = parseFloat(possiblePrices[possiblePrices.length - 1]);
+        // This regex finds numbers even if they are stuck to text like "jan$21"
+        const numMatch = raw.match(/\d+(\.\d{2})?/g);
+        if (numMatch) {
+            // Filter out things that look like dates (1/1) or years (2026)
+            const filtered = numMatch.filter(n => n.length < 5 && !raw.includes(n + '/') && !raw.includes('/' + n));
+            if (filtered.length > 0) {
+                // Take the last number in the message, as it's usually the price
+                amount = parseFloat(filtered[filtered.length - 1]);
             }
         }
     }
 
-    // 2. EXTRACT DATES
-    const datePattern = /\d{1,2}[\/\s](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2})/g;
+    // 3. Extract Dates (1 jan, 2/2, 9/2, etc.)
+    const datePattern = /\d{1,2}(?:\/|\s)(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2})/g;
     const datesFound = raw.match(datePattern);
     
-    let description = "TAXI TRIPS";
+    let desc = "TAXI TRIPS";
     if (datesFound) {
         if (datesFound.length >= 2) {
-            description = `TRIPS FROM ${datesFound[0]} TO ${datesFound[datesFound.length - 1]}`;
+            desc = `TRIPS FROM ${datesFound[0]} TO ${datesFound[datesFound.length - 1]}`;
         } else {
-            description = `TRIPS ON ${datesFound[0]}`;
+            desc = `TRIPS ON ${datesFound[0]}`;
         }
     }
 
     if (amount > 0) {
-        items.push({ d: description.toUpperCase(), p: amount });
-        status.innerText = "✅ ADDED: $" + amount;
+        items.push({ d: desc.toUpperCase(), p: amount });
+        status.innerText = "✅ Added: " + desc.toUpperCase() + " ($" + amount + ")";
         status.style.color = "green";
         document.getElementById('rawText').value = "";
         render();
     } else {
-        status.innerText = "❌ COULD NOT FIND PRICE. TRY MANUAL ENTRY.";
+        status.innerText = "❌ Could not find price. Try Manual Entry.";
         status.style.color = "red";
     }
 }
