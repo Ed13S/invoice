@@ -4,24 +4,40 @@
     <meta charset="UTF-8">
     <title>Taxi Invoice Generator</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background: #f4f4f4; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f4f4f4; }
         .container { max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: auto; }
-        textarea { width: 100%; height: 80px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; box-sizing: border-box; }
-        .manual-entry { display: flex; gap: 10px; margin-bottom: 10px; }
-        .manual-entry input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; }
-        .btn-row { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; flex: 1; font-size: 14px; font-weight: bold; }
-        .clear-btn { background: #dc3545; }
-        .print-btn { background: #28a745; margin-top: 20px; width: 100%; }
-        #output { margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px; display: none; }
-        .invoice-box { border: 1px solid #eee; padding: 30px; line-height: 1.6; color: #555; background: white; }
-        table { width: 100%; line-height: inherit; text-align: left; border-collapse: collapse; }
-        table td { padding: 5px; vertical-align: top; }
+        
+        /* Input Areas */
+        textarea { width: 100%; height: 100px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; box-sizing: border-box; font-size: 16px; }
+        .manual-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .manual-row input { flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        .manual-row input[type="number"] { flex: 1; }
+
+        /* Buttons */
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        button { padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; color: white; }
+        .btn-blue { background: #007bff; }
+        .btn-green { background: #28a745; }
+        .btn-red { background: #dc3545; }
+        
+        /* Invoice Styling */
+        #output { margin-top: 20px; display: none; }
+        .invoice-box { border: 1px solid #eee; padding: 20px; line-height: 1.6; color: #555; background: white; }
+        table { width: 100%; text-align: left; border-collapse: collapse; }
+        table td { padding: 8px; vertical-align: top; }
         table tr.heading td { background: #eee; border-bottom: 1px solid #ddd; font-weight: bold; }
         table tr.item td { border-bottom: 1px solid #eee; }
-        table tr.total td { border-top: 2px solid #eee; font-weight: bold; }
-        .del-btn { color: #dc3545; cursor: pointer; border: none; background: none; font-weight: bold; }
-        @media print { .no-print { display: none !important; } .container { box-shadow: none; width: 100%; max-width: none; border: none; padding: 0; } #output { display: block !important; border: none; } }
+        table tr.total td { border-top: 2px solid #eee; font-weight: bold; font-size: 18px; }
+        
+        .del-x { color: #dc3545; cursor: pointer; font-weight: bold; border: none; background: none; font-size: 16px; }
+        .print-full { background: #007bff; width: 100%; margin-top: 15px; font-size: 16px; }
+
+        @media print { 
+            .no-print { display: none !important; } 
+            body { margin: 0; background: white; }
+            .container { box-shadow: none; max-width: 100%; width: 100%; padding: 0; }
+            #output { display: block !important; }
+        }
     </style>
 </head>
 <body>
@@ -29,122 +45,131 @@
 <div class="container">
     <div class="no-print">
         <h2>Invoice Creator</h2>
-        <p><strong>Option 1: Paste Text</strong></p>
-        <textarea id="inputData" placeholder="Week 1, 8/12-12/12, $48..."></textarea>
         
-        <p><strong>Option 2: Manual Entry</strong></p>
-        <div class="manual-entry">
-            <input type="text" id="mDesc" placeholder="Description (e.g. Week 1)">
-            <input type="number" id="mPrice" placeholder="Price ($)">
-        </div>
+        <label>Paste Trip Logs:</label>
+        <textarea id="inputData" placeholder="Example: Week 1, 8/12-12/12, $48..."></textarea>
         
-        <div class="btn-row">
-            <button onclick="processText()">Process Text</button>
-            <button style="background:#6c757d" onclick="addManual()">Add Manual</button>
-            <button class="clear-btn" onclick="clearAll()">Clear All</button>
+        <label>Or Enter Manually:</label>
+        <div class="manual-row">
+            <input type="text" id="mDesc" placeholder="Description">
+            <input type="number" id="mPrice" placeholder="Price">
         </div>
+
+        <div class="btn-group">
+            <button class="btn-blue" onclick="processText()">Process Text</button>
+            <button class="btn-green" onclick="addManual()">+ Add Manual</button>
+        </div>
+        <button class="btn-red" style="width:100%" onclick="clearAll()">Clear All Lines</button>
     </div>
 
     <div id="output" class="invoice-box">
-        <div id="invoiceContent">
-            <table>
-                <tr><td colspan="2"><strong>Business Identification:</strong><br>Taxi Trips Invoice<br>ABN: 15 685 270 239<br>Contact: 0404 843 222</td></tr>
-                <tr style="height:20px;"></tr>
-                <tr>
-                    <td><strong>Billing Details:</strong><br>Ref: <span id="refNum"></span><br>Date: <span id="todayStr"></span></td>
-                    <td style="text-align:right"><strong>Due Date:</strong><br><span id="dueDateStr"></span></td>
+        <table>
+            <tr>
+                <td colspan="2">
+                    <strong>Business Identification:</strong><br>
+                    Taxi Trips Invoice<br>
+                    ABN: 15 685 270 239<br>
+                    Contact: 0404 843 222
+                </td>
+            </tr>
+            <tr style="height:20px;"></tr>
+            <tr>
+                <td><strong>Billing Details:</strong><br>Ref: <span id="refId"></span><br>Date: <span id="curDate"></span></td>
+                <td style="text-align:right"><strong>Due Date:</strong><br><span id="dueDate"></span></td>
+            </tr>
+        </table>
+        <br>
+        <table>
+            <thead>
+                <tr class="heading">
+                    <td>Description</td>
+                    <td style="text-align:right">Price</td>
+                    <td class="no-print" style="width:40px"></td>
                 </tr>
-            </table>
-            <br>
-            <table>
-                <thead>
-                    <tr class="heading"><td>Item Description</td><td>Qty</td><td>Price</td><td class="no-print"></td></tr>
-                </thead>
-                <tbody id="invoiceItems"></tbody>
-                <tfoot>
-                    <tr class="total">
-                        <td colspan="2"></td>
-                        <td>Grand Total:</td>
-                        <td id="grandTotal">$0.00</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        <button class="print-btn no-print" onclick="window.print()">Print / Save PDF</button>
+            </thead>
+            <tbody id="lineItems"></tbody>
+            <tfoot>
+                <tr class="total">
+                    <td>Grand Total:</td>
+                    <td style="text-align:right" id="grandTotal">$0.00</td>
+                    <td class="no-print"></td>
+                </tr>
+            </tfoot>
+        </table>
+        <button class="print-full no-print" onclick="window.print()">Print / Save PDF</button>
     </div>
 </div>
 
 <script>
-    let invoiceLines = [];
+    let lines = [];
 
     function processText() {
         const text = document.getElementById('inputData').value;
+        // Regex finds Week name, Date range, and Price
         const regex = /(Week\s\d+)[^\d]*(\d+\/\d+-\d+\/\d+)[^\$]*\$(\d+)/gi;
         let matches = [...text.matchAll(regex)];
         
         matches.forEach(m => {
-            invoiceLines.push({ desc: `${m[1]} (${m[2]})`, price: parseFloat(m[3]) });
+            lines.push({ d: `${m[1]} (${m[2]})`, p: parseFloat(m[3]) });
         });
 
         if(matches.length === 0) {
             const totalMatch = text.match(/Total\s*\$?(\d+)/i);
-            if(totalMatch) invoiceLines.push({ desc: "Total from text", price: parseFloat(totalMatch[1]) });
+            if(totalMatch) lines.push({ d: "Total from text", p: parseFloat(totalMatch[1]) });
         }
         
-        renderInvoice();
+        updateInvoice();
         document.getElementById('inputData').value = '';
     }
 
     function addManual() {
-        const desc = document.getElementById('mDesc').value;
-        const price = document.getElementById('mPrice').value;
-        if(desc && price) {
-            invoiceLines.push({ desc: desc, price: parseFloat(price) });
-            renderInvoice();
+        const d = document.getElementById('mDesc').value;
+        const p = document.getElementById('mPrice').value;
+        if(d && p) {
+            lines.push({ d: d, p: parseFloat(p) });
+            updateInvoice();
             document.getElementById('mDesc').value = '';
             document.getElementById('mPrice').value = '';
         }
     }
 
     function deleteLine(index) {
-        invoiceLines.splice(index, 1);
-        renderInvoice();
+        lines.splice(index, 1);
+        updateInvoice();
     }
 
     function clearAll() {
-        if(confirm("Are you sure you want to clear all lines?")) {
-            invoiceLines = [];
-            renderInvoice();
-            document.getElementById('output').style.display = 'none';
+        if(confirm("Clear everything?")) {
+            lines = [];
+            updateInvoice();
         }
     }
 
-    function renderInvoice() {
+    function updateInvoice() {
         const now = new Date();
-        const dueDate = new Date();
-        dueDate.setMonth(now.getMonth() + 1);
+        const due = new Date();
+        due.setMonth(now.getMonth() + 1);
 
-        document.getElementById('refNum').innerText = now.toLocaleDateString('en-GB').replace(/\//g, '');
-        document.getElementById('todayStr').innerText = now.toLocaleDateString('en-GB');
-        document.getElementById('dueDateStr').innerText = dueDate.toLocaleDateString('en-GB');
+        document.getElementById('refId').innerText = now.toLocaleDateString('en-GB').replace(/\//g, '');
+        document.getElementById('curDate').innerText = now.toLocaleDateString('en-GB');
+        document.getElementById('dueDate').innerText = due.toLocaleDateString('en-GB');
 
-        const tbody = document.getElementById('invoiceItems');
+        const tbody = document.getElementById('lineItems');
         tbody.innerHTML = '';
         let total = 0;
 
-        invoiceLines.forEach((item, index) => {
-            total += item.price;
+        lines.forEach((item, index) => {
+            total += item.p;
             tbody.innerHTML += `
                 <tr class="item">
-                    <td>${item.desc}</td>
-                    <td>1</td>
-                    <td>$${item.price.toFixed(2)}</td>
-                    <td class="no-print"><button class="del-btn" onclick="deleteLine(${index})">✕</button></td>
+                    <td>${item.d}</td>
+                    <td style="text-align:right">$${item.p.toFixed(2)}</td>
+                    <td class="no-print" style="text-align:right"><button class="del-x" onclick="deleteLine(${index})">✕</button></td>
                 </tr>`;
         });
 
         document.getElementById('grandTotal').innerText = `$${total.toFixed(2)}`;
-        document.getElementById('output').style.display = invoiceLines.length > 0 ? 'block' : 'none';
+        document.getElementById('output').style.display = lines.length > 0 ? 'block' : 'none';
     }
 </script>
 
