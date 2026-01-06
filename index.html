@@ -5,135 +5,106 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invoice Maker</title>
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 15px; color: #333; background: #f4f7f6; }
-        .container { max-width: 600px; margin: auto; }
-        .card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; }
-        textarea { width: 100%; height: 100px; margin-bottom: 10px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        .review-item { background: #fff9c4; border: 2px solid #fbc02d; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
-        .edit-input { width: 100%; padding: 10px; margin: 4px 0 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
-        .btn-row { display: flex; gap: 8px; margin-bottom: 10px; }
-        button { flex: 1; padding: 14px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; }
-        .blue { background: #2563eb; color: #fff; }
-        .green { background: #059669; color: #fff; }
-        .red { background: #fee2e2; color: #dc2626; }
-        .del-btn { background: #fee2e2; color: #dc2626; padding: 4px 8px; font-size: 12px; border-radius: 4px; }
-        #invoice { display: none; background: white; padding: 30px; border: 1px solid #eee; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        td, th { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
-        .total-box { text-align: right; font-size: 22px; font-weight: bold; color: #059669; border-top: 2px solid #000; padding-top: 10px; }
-        @media print { .no-print { display: none !important; } #invoice { display: block !important; border: none; width: 100%; } .del-btn { display: none; } }
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+        .no-print { background: white; padding: 20px; border: 2px solid #333; border-radius: 10px; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; font-weight: bold; cursor: pointer; border-radius: 5px; border: none; font-size: 16px; }
+        .green-btn { background: #28a745; color: white; margin-bottom: 10px; }
+        .red-btn { background: #dc3545; color: white; margin-top: 20px; }
+        .blue-btn { background: #007bff; color: white; margin-top: 10px; }
+        
+        #invoice { background: white; padding: 30px; border: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .total { text-align: right; font-size: 20px; font-weight: bold; margin-top: 15px; }
+        .del { color: red; cursor: pointer; font-weight: bold; border: none; background: none; }
+        @media print { .no-print { display: none; } #invoice { border: none; } }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="card no-print">
-        <h3 style="margin-top:0">Invoice Maker</h3>
-        <textarea id="rawText" placeholder="Paste message here..."></textarea>
-        <div class="btn-row">
-            <button class="blue" onclick="processText()">Process Message</button>
-            <button class="red" onclick="clearAll()">Clear All</button>
-        </div>
-        <div id="scannerResults"></div>
-    </div>
+<div class="no-print">
+    <h3>Add Invoice Line</h3>
+    <label>Description:</label>
+    <input type="text" id="descInput" placeholder="e.g. TRIPS 1/1 TO 5/1">
+    
+    <label>Amount ($):</label>
+    <input type="number" id="priceInput" placeholder="0.00">
+    
+    <button class="green-btn" onclick="addItem()">ADD LINE</button>
+    <button class="blue-btn" onclick="window.print()">PRINT / SAVE PDF</button>
+    <button class="red-btn" onclick="clearData()">CLEAR EVERYTHING</button>
+</div>
 
-    <div id="invoice">
-        <div style="display:flex; justify-content:space-between; border-bottom: 2px solid #000; padding-bottom: 10px;">
-            <div><h2 style="margin:0">INVOICE</h2><small>ID: <span id="invId"></span></small></div>
-            <div style="text-align:right"><strong>Taxi Trips</strong><br>ABN: 15 685 270 239</div>
-        </div>
-        <p><strong>Bill To:</strong> Keqin Dai<br>Date: <span id="invDate"></span></p>
-        <table>
-            <thead><tr><th>Description</th><th style="text-align:right">Amount</th><th></th></tr></thead>
-            <tbody id="rows"></tbody>
-        </table>
-        <div class="total-box">Total: <span id="grandTotal"></span></div>
-        <button class="blue no-print" style="width:100%; margin-top:20px" onclick="window.print()">Print / Save PDF</button>
-    </div>
+<div id="invoice">
+    <h1 style="margin:0">INVOICE</h1>
+    <p><strong>Taxi Trips</strong> | ABN: 15 685 270 239</p>
+    <p><strong>Bill To:</strong> Keqin Dai</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th style="width:100px">Amount</th>
+                <th class="no-print" style="width:50px">X</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+    
+    <div class="total">Total: $<span id="grandTotal">0.00</span></div>
 </div>
 
 <script>
-let items = JSON.parse(localStorage.getItem('savedInvoiceLines')) || [];
-render();
+    // LOAD SAVED DATA
+    var saved = localStorage.getItem('taxiData');
+    var items = saved ? JSON.parse(saved) : [];
+    refreshTable();
 
-function clearAll() {
-    if(confirm("Delete everything?")) {
-        items = [];
-        localStorage.removeItem('savedInvoiceLines');
-        document.getElementById('scannerResults').innerHTML = "";
-        render();
-    }
-}
-
-function processText() {
-    const raw = document.getElementById('rawText').value;
-    const resultsArea = document.getElementById('scannerResults');
-    resultsArea.innerHTML = ""; 
-
-    // Find all chunks that look like a week (Numbers followed by dates)
-    const segments = raw.split(/week/i);
-    
-    segments.forEach((seg, index) => {
-        if(!seg.trim()) return;
+    function addItem() {
+        var d = document.getElementById('descInput').value;
+        var p = document.getElementById('priceInput').value;
         
-        const prices = seg.match(/\d+(\.\d{2})?/g);
-        const dates = seg.match(/\d{1,2}\/\d{1,2}/g);
-
-        if (prices) {
-            // Find the highest number in this segment (The Total)
-            let p = Math.max(...prices.map(n => parseFloat(n)));
-            let d = "TAXI TRIPS";
-            if(dates) {
-                d = dates.length > 1 ? `TRIPS FROM ${dates[0]} TO ${dates[dates.length-1]}` : `TRIP ON ${dates[0]}`;
-            }
-
-            const div = document.createElement('div');
-            div.className = 'review-item';
-            div.innerHTML = `
-                <input type="text" id="desc-${index}" class="edit-input" value="${d.toUpperCase()}">
-                <input type="number" id="price-${index}" class="edit-input" value="${p}">
-                <button class="green" style="width:100%" onclick="addSpecificLine(${index}, this)">+ Add This Week</button>
-            `;
-            resultsArea.appendChild(div);
+        if(d !== "" && p !== "") {
+            items.push({ d: d.toUpperCase(), p: parseFloat(p) });
+            saveAndRefresh();
+            document.getElementById('descInput').value = "";
+            document.getElementById('priceInput').value = "";
         }
-    });
-}
-
-function addSpecificLine(index, btn) {
-    const d = document.getElementById(`desc-${index}`).value;
-    const p = document.getElementById(`price-${index}`).value;
-    if(p) {
-        items.push({ d: d, p: parseFloat(p) });
-        localStorage.setItem('savedInvoiceLines', JSON.stringify(items));
-        btn.parentElement.remove();
-        render();
     }
-}
 
-function deleteRow(idx) {
-    items.splice(idx, 1);
-    localStorage.setItem('savedInvoiceLines', JSON.stringify(items));
-    render();
-}
+    function deleteItem(index) {
+        items.splice(index, 1);
+        saveAndRefresh();
+    }
 
-function render() {
-    const now = new Date();
-    document.getElementById('invId').innerText = now.getTime().toString().slice(-5);
-    document.getElementById('invDate').innerText = now.toLocaleDateString('en-GB');
-    let total = 0;
-    let html = "";
-    items.forEach((i, idx) => {
-        total += i.p;
-        html += `<tr>
-            <td>${i.d}</td>
-            <td style="text-align:right">$${i.p.toFixed(2)}</td>
-            <td style="text-align:right"><button class="del-btn no-print" onclick="deleteRow(${idx})">Delete</button></td>
-        </tr>`;
-    });
-    document.getElementById('rows').innerHTML = html;
-    document.getElementById('grandTotal').innerText = "$" + total.toFixed(2);
-    document.getElementById('invoice').style.display = items.length > 0 ? 'block' : 'none';
-}
+    function clearData() {
+        if(confirm("Delete all rows?")) {
+            items = [];
+            saveAndRefresh();
+        }
+    }
+
+    function saveAndRefresh() {
+        localStorage.setItem('taxiData', JSON.stringify(items));
+        refreshTable();
+    }
+
+    function refreshTable() {
+        var html = "";
+        var total = 0;
+        for(var i=0; i < items.length; i++) {
+            total += items[i].p;
+            html += "<tr>" +
+                    "<td>" + items[i].d + "</td>" +
+                    "<td>$" + items[i].p.toFixed(2) + "</td>" +
+                    "<td class='no-print'><button class='del' onclick='deleteItem("+i+")'>DEL</button></td>" +
+                    "</tr>";
+        }
+        document.getElementById('tableBody').innerHTML = html;
+        document.getElementById('grandTotal').innerText = total.toFixed(2);
+    }
 </script>
+
 </body>
 </html>
