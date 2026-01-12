@@ -66,8 +66,8 @@
         <table>
             <tr>
                 <td colspan="2">
-                    <strong>Business Identification:</strong><br>
-                    Taxi Trips Invoice<br>
+                    <strong>Taxi Trips Invoice:</strong><br>
+                    G Dureja<br>
                     ABN: 15 685 270 239<br>
                     Contact: 0404 843 222
                 </td>
@@ -105,7 +105,6 @@
 
     function processText() {
         const text = document.getElementById('inputData').value;
-        // Regex finds Week name, Date range, and Price
         const regex = /(Week\s\d+)[^\d]*(\d+\/\d+-\d+\/\d+)[^\$]*\$(\d+)/gi;
         let matches = [...text.matchAll(regex)];
         
