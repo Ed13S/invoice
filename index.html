@@ -5,123 +5,101 @@ layout: default
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title id="pageTitle">Invoice</title>
+    <title id="pageTitle">Taxi Invoice Generator</title>
     <style>
-        /* Force the background to be neutral so theme colors don't bleed in */
-        #main-content { background: #f4f4f4 !important; padding: 20px 10px; min-height: 100vh; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f4f4f4; }
+        .container { max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: auto; }
         
-        .invoice-container { 
-            max-width: 700px; 
-            background: white !important; 
-            padding: 30px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            margin: auto;
-            color: #333 !important; /* Forces text to be dark even on dark themes */
-        }
+        /* Input Areas */
+        textarea { width: 100%; height: 100px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; box-sizing: border-box; font-size: 16px; }
+        .manual-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .manual-row input { flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        .manual-row input[type="number"] { flex: 1; }
 
-        h2, label { color: #333 !important; font-family: sans-serif; }
-
-        textarea { 
-            width: 100%; height: 100px; margin-bottom: 15px; 
-            border: 1px solid #ccc; border-radius: 6px; padding: 12px; 
-            box-sizing: border-box; font-size: 16px; 
-        }
-
-        .manual-row { display: flex; gap: 10px; margin-bottom: 15px; }
-        .manual-row input { 
-            flex: 2; padding: 12px; border: 1px solid #ccc; 
-            border-radius: 6px; font-size: 16px; 
-        }
-
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        button { 
-            padding: 14px; border: none; border-radius: 6px; 
-            cursor: pointer; font-weight: bold; font-size: 14px; color: white; 
-        }
+        /* Buttons */
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        button { padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; color: white; }
         .btn-blue { background: #007bff; }
         .btn-green { background: #28a745; }
         .btn-red { background: #dc3545; }
         
-        /* Invoice Table Styling */
-        .invoice-box { 
-            border: 1px solid #eee; padding: 25px; 
-            line-height: 1.6; background: white; margin-top: 20px;
-        }
+        /* Invoice Styling */
+        #output { margin-top: 20px; display: none; }
+        .invoice-box { border: 1px solid #eee; padding: 20px; line-height: 1.6; color: #555; background: white; }
         table { width: 100%; text-align: left; border-collapse: collapse; }
-        table td { padding: 10px; vertical-align: top; color: #333 !important; }
-        table tr.heading td { background: #f8f9fa; font-weight: bold; border-bottom: 2px solid #ddd; }
+        table td { padding: 8px; vertical-align: top; }
+        table tr.heading td { background: #eee; border-bottom: 1px solid #ddd; font-weight: bold; }
         table tr.item td { border-bottom: 1px solid #eee; }
-        table tr.total td { border-top: 2px solid #333; font-weight: bold; font-size: 20px; }
+        table tr.total td { border-top: 2px solid #eee; font-weight: bold; font-size: 18px; }
         
-        .del-x { color: #dc3545; cursor: pointer; border: none; background: none; font-size: 18px; padding: 0 5px; }
+        .del-x { color: #dc3545; cursor: pointer; font-weight: bold; border: none; background: none; font-size: 16px; }
+        .print-full { background: #007bff; width: 100%; margin-top: 15px; font-size: 16px; }
 
         @media print { 
             .no-print { display: none !important; } 
-            body, #main-content { background: white !important; margin: 0; padding: 0; }
-            .invoice-container { box-shadow: none; border: none; width: 100%; max-width: 100%; padding: 0; }
+            body { margin: 0; background: white; }
+            .container { box-shadow: none; max-width: 100%; width: 100%; padding: 0; }
+            #output { display: block !important; }
         }
     </style>
 </head>
 <body>
 
-<div id="main-content">
-    <div class="invoice-container">
-        <div class="no-print">
-            <h2 style="margin-top:0">Invoice Creator</h2>
-            
-            <label>Paste Trip Logs:</label>
-            <textarea id="inputData" placeholder="Example: Week 1, 8/12-12/12, $48..."></textarea>
-            
-            <label>Or Enter Manually:</label>
-            <div class="manual-row">
-                <input type="text" id="mDesc" placeholder="Description">
-                <input type="number" id="mPrice" placeholder="Price">
-            </div>
-
-            <div class="btn-group">
-                <button class="btn-blue" onclick="processText()">Process Text</button>
-                <button class="btn-green" onclick="addManual()">+ Add Manual</button>
-            </div>
-            <button class="btn-red" style="width:100%; margin-bottom: 20px;" onclick="clearAll()">Clear All Lines</button>
+<div class="container">
+    <div class="no-print">
+        <h2>Invoice Creator</h2>
+        
+        <label>Paste Trip Logs:</label>
+        <textarea id="inputData" placeholder="Example: Week 1, 8/12-12/12, $48..."></textarea>
+        
+        <label>Or Enter Manually:</label>
+        <div class="manual-row">
+            <input type="text" id="mDesc" placeholder="Description">
+            <input type="number" id="mPrice" placeholder="Price">
         </div>
 
-        <div id="output" class="invoice-box" style="display:none;">
-            <table>
-                <tr>
-                    <td>
-                        <strong style="font-size: 1.2em;">Taxi Trips Invoice:</strong><br>
-                        G Dureja<br>
-                        ABN: 15 685 270 239<br>
-                        Contact: 0404 843 222
-                    </td>
-                </tr>
-                <tr style="height:20px;"></tr>
-                <tr>
-                    <td><strong>Billing Details:</strong><br>Ref: <span id="refId"></span><br>Date: <span id="curDate"></span></td>
-                    <td style="text-align:right"><strong>Due Date:</strong><br><span id="dueDate"></span></td>
-                </tr>
-            </table>
-            <br>
-            <table>
-                <thead>
-                    <tr class="heading">
-                        <td>Description</td>
-                        <td style="text-align:right">Price</td>
-                        <td class="no-print" style="width:40px"></td>
-                    </tr>
-                </thead>
-                <tbody id="lineItems"></tbody>
-                <tfoot>
-                    <tr class="total">
-                        <td>Grand Total:</td>
-                        <td style="text-align:right" id="grandTotal">$0.00</td>
-                        <td class="no-print"></td>
-                    </tr>
-                </tfoot>
-            </table>
-            <button class="btn-blue no-print" style="width:100%; margin-top:20px; font-size: 16px;" onclick="window.print()">Print / Save PDF</button>
+        <div class="btn-group">
+            <button class="btn-blue" onclick="processText()">Process Text</button>
+            <button class="btn-green" onclick="addManual()">+ Add Manual</button>
         </div>
+        <button class="btn-red" style="width:100%" onclick="clearAll()">Clear All Lines</button>
+    </div>
+
+    <div id="output" class="invoice-box">
+        <table>
+            <tr>
+                <td colspan="2">
+                    <strong>Taxi Trips Invoice:</strong><br>
+                    G Dureja<br>
+                    ABN: 15 685 270 239<br>
+                    Contact: 0404 843 222
+                </td>
+            </tr>
+            <tr style="height:20px;"></tr>
+            <tr>
+                <td><strong>Billing Details:</strong><br>Ref: <span id="refId"></span><br>Date: <span id="curDate"></span></td>
+                <td style="text-align:right"><strong>Due Date:</strong><br><span id="dueDate"></span></td>
+            </tr>
+        </table>
+        <br>
+        <table>
+            <thead>
+                <tr class="heading">
+                    <td>Description</td>
+                    <td style="text-align:right">Price</td>
+                    <td class="no-print" style="width:40px"></td>
+                </tr>
+            </thead>
+            <tbody id="lineItems"></tbody>
+            <tfoot>
+                <tr class="total">
+                    <td>Grand Total:</td>
+                    <td style="text-align:right" id="grandTotal">$0.00</td>
+                    <td class="no-print"></td>
+                </tr>
+            </tfoot>
+        </table>
+        <button class="print-full no-print" onclick="window.print()">Print / Save PDF</button>
     </div>
 </div>
 
@@ -179,7 +157,7 @@ layout: default
         const year = now.getFullYear();
         const dateString = `${day}${month}${year}`;
 
-        // THIS SETS THE PDF FILENAME
+        // Sets the PDF suggested filename
         document.title = dateString;
 
         document.getElementById('refId').innerText = dateString;
