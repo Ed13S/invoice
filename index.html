@@ -1,10 +1,13 @@
+---
+layout: default
+---
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Taxi Invoice Generator</title>
+    <title id="pageTitle">Taxi Invoice Generator</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #f4f4f4; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: transparent; }
         .container { max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: auto; }
         
         /* Input Areas */
@@ -149,7 +152,16 @@
         const due = new Date();
         due.setMonth(now.getMonth() + 1);
 
-        document.getElementById('refId').innerText = now.toLocaleDateString('en-GB').replace(/\//g, '');
+        // Generate the formatted date string (DDMMYYYY)
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const dateString = `${day}${month}${year}`;
+
+        // Set the Page Title (This becomes the PDF filename)
+        document.title = dateString;
+
+        document.getElementById('refId').innerText = dateString;
         document.getElementById('curDate').innerText = now.toLocaleDateString('en-GB');
         document.getElementById('dueDate').innerText = due.toLocaleDateString('en-GB');
 
