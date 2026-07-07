@@ -43,10 +43,18 @@
     <div class="no-print">
         <h2 style="margin-top:0; color:#333;">Invoice Creator</h2>
 
+        <label>Gemini API Key (kept in memory only, never saved):</label>
+        <input type="password" id="geminiKey" placeholder="Paste your Gemini API key" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; margin-bottom:10px; font-size:14px;">
+
         <label>Paste Trip Message:</label>
         <textarea id="inputData" placeholder="e.g. Week 1, 22/9-26/9 $48. Week 2, 29/9-3/10 $64, Total $112. Thanks"></textarea>
 
         <div id="statusMsg"></div>
+
+        <div class="btn-group">
+            <button class="btn-blue" onclick="processText()">Process Text (basic)</button>
+            <button class="btn-green" onclick="processWithAI()">Process with AI</button>
+        </div>
 
         <label>Or Enter Manually:</label>
         <div class="manual-row">
@@ -54,10 +62,9 @@
             <input type="number" id="mPrice" placeholder="Price">
         </div>
         <div class="btn-group">
-            <button class="btn-blue" onclick="processText()">Process Text</button>
             <button class="btn-green" onclick="addManual()">+ Add Manual</button>
+            <button class="btn-red" onclick="clearAll()">Clear All Lines</button>
         </div>
-        <button class="btn-red" onclick="clearAll()">Clear All Lines</button>
     </div>
 
     <div id="output" class="invoice-box">
@@ -107,6 +114,116 @@
         el.innerText = msg;
     }
 
+    function pad2(n) {
+        return String(n).padStart(2, '0');
+    }
+
+    // Finds a date range like "22/9-26/9" or "22/9 to 26/9" inside a description
+    // and reformats it as "22/09 to 26/09/<year>". If no year is present in the
+    // text, the current year is assumed (with a rollover to next year if the
+    // range wraps past December, e.g. 29/12-2/1).
+    function formatDateRangeInText(desc) {
+        const dateRangeRegex = /(\d{1,2})\s*\/\s*(\d{1,2})\s*(?:-|to)\s*(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?/i;
+        const m = desc.match(dateRangeRegex);
+        if (!m) return desc;
+
+        const d1 = parseInt(m[1], 10), mo1 = parseInt(m[2], 10);
+        const d2 = parseInt(m[3], 10), mo2 = parseInt(m[4], 10);
+
+        let year = m[5] ? parseInt(m[5], 10) : new Date().getFullYear();
+        if (year < 100) year += 2000;
+
+        // If the range wraps around into a new year (e.g. Dec -> Jan), bump the end year.
+        let endYear = year;
+        if (mo2 < mo1) endYear += 1;
+
+        const formatted = pad2(d1) + '/' + pad2(mo1) + ' to ' + pad2(d2) + '/' + pad2(mo2) + '/' + endYear;
+        return desc.slice(0, m.index) + formatted + desc.slice(m.index + m[0].length);
+    }
+
+    async function processWithAI() {
+        // --- HARDCODED KEY LINKED HERE ---
+        const apiKey = "YOUR_GEMINI_API_KEY_HERE";
+        const text = document.getElementById('inputData').value.trim();
+
+        if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") { setStatus('Please hardcode your actual API key into the script first.', '#dc3545'); return; }
+        if (!text) { setStatus('Paste a message first.', '#dc3545'); return; }
+
+        setStatus('Asking Gemini to read the message...', '#007bff');
+
+        const currentYear = new Date().getFullYear();
+        const prompt = 'Extract every taxi trip line item from this message. ' +
+            'For each item, work out its date range and price. ' +
+            'Format the description EXACTLY like this pattern: "WEEK <n>, <DD>/<MM> to <DD>/<MM>/<YYYY>" ' +
+            '(zero-padded day and month, e.g. 27/09 to 29/09/2026). ' +
+            'If no year is written in the message, assume ' + currentYear +
+            ' (or ' + (currentYear + 1) + ' if the date range crosses from December into January). ' +
+            'Ignore any "Total $x" summary line - only return individual week/trip line items. ' +
+            'Respond with ONLY a raw JSON array, no markdown fences, no extra text, in this exact shape: ' +
+            '[{"desc":"WEEK 1, 27/09 to 29/09/2026","price":48}]. ' +
+            'Message:\n' + text;
+
+        try {
+            const response = await fetch(
+                'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey),
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: 'application/json' }
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errText = await response.text();
+                setStatus('Gemini API error (' + response.status + '). Check your key.', '#dc3545');
+                console.error('Gemini error:', errText);
+                return;
+            }
+
+            const data = await response.json();
+            const raw = data.candidates && data.candidates[0] && data.candidates[0].content &&
+                        data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+                        data.candidates[0].content.parts[0].text;
+
+            if (!raw) {
+                setStatus('Gemini returned no usable content.', '#dc3545');
+                return;
+            }
+
+            const cleaned = raw.replace(/```json|```/g, '').trim();
+            let items;
+            try {
+                items = JSON.parse(cleaned);
+            } catch (parseErr) {
+                setStatus('Could not parse Gemini\'s response.', '#dc3545');
+                console.error('Parse error:', parseErr, cleaned);
+                return;
+            }
+
+            if (!Array.isArray(items) || items.length === 0) {
+                setStatus('Gemini found no line items.', '#dc3545');
+                return;
+            }
+
+            items.forEach(item => {
+                if (item && item.desc && typeof item.price !== 'undefined') {
+                    lines.push({ d: String(item.desc).toUpperCase(), p: parseFloat(item.price) });
+                }
+            });
+
+            setStatus('AI added ' + items.length + ' line item(s).', '#28a745');
+            updateInvoice();
+            document.getElementById('inputData').value = '';
+
+        } catch (err) {
+            setStatus('Network/request error calling Gemini.', '#dc3545');
+            console.error(err);
+        }
+    }
+
     function processText() {
         const text = document.getElementById('inputData').value.trim();
         if (!text) { setStatus('Paste a message first.', '#dc3545'); return; }
@@ -120,6 +237,7 @@
 
         while ((match = regex.exec(text)) !== null) {
             let desc = match[1].replace(/[,.\s]+$/, '').trim();
+            desc = formatDateRangeInText(desc);
             let price = parseFloat(match[2]);
             if (!isNaN(price)) {
                 found.push({ d: desc.toUpperCase(), p: price });
@@ -141,7 +259,7 @@
         const d = document.getElementById('mDesc').value.trim();
         const p = document.getElementById('mPrice').value;
         if (d && p) {
-            lines.push({ d: d.toUpperCase(), p: parseFloat(p) });
+            lines.push({ d: formatDateRangeInText(d).toUpperCase(), p: parseFloat(p) });
             updateInvoice();
             document.getElementById('mDesc').value = '';
             document.getElementById('mPrice').value = '';
