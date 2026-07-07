@@ -43,9 +43,6 @@
     <div class="no-print">
         <h2 style="margin-top:0; color:#333;">Invoice Creator</h2>
 
-        <label>Gemini API Key (kept in memory only, never saved):</label>
-        <input type="password" id="geminiKey" placeholder="Paste your Gemini API key" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; margin-bottom:10px; font-size:14px;">
-
         <label>Paste Trip Message:</label>
         <textarea id="inputData" placeholder="e.g. Week 1, 22/9-26/9 $48. Week 2, 29/9-3/10 $64, Total $112. Thanks"></textarea>
 
@@ -118,10 +115,6 @@
         return String(n).padStart(2, '0');
     }
 
-    // Finds a date range like "22/9-26/9" or "22/9 to 26/9" inside a description
-    // and reformats it as "22/09 to 26/09/<year>". If no year is present in the
-    // text, the current year is assumed (with a rollover to next year if the
-    // range wraps past December, e.g. 29/12-2/1).
     function formatDateRangeInText(desc) {
         const dateRangeRegex = /(\d{1,2})\s*\/\s*(\d{1,2})\s*(?:-|to)\s*(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?/i;
         const m = desc.match(dateRangeRegex);
@@ -133,7 +126,6 @@
         let year = m[5] ? parseInt(m[5], 10) : new Date().getFullYear();
         if (year < 100) year += 2000;
 
-        // If the range wraps around into a new year (e.g. Dec -> Jan), bump the end year.
         let endYear = year;
         if (mo2 < mo1) endYear += 1;
 
@@ -142,11 +134,11 @@
     }
 
     async function processWithAI() {
-        // --- HARDCODED KEY LINKED HERE ---
-        const apiKey = "YOUR_GEMINI_API_KEY_HERE";
+        // --- INSERT YOUR GEMINI API KEY BELOW ---
+        const apiKey = "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A";
         const text = document.getElementById('inputData').value.trim();
 
-        if (!apiKey || apiKey === "AIzaSyA4_ly7ZqKGhCiAD71WTUQArHqA7dqNt_A") { setStatus('Please hardcode your actual API key into the script first.', '#dc3545'); return; }
+        if (apiKey === "YOUR_ACTUAL_API_KEY_HERE") { setStatus('Please configure your API key in the script.', '#dc3545'); return; }
         if (!text) { setStatus('Paste a message first.', '#dc3545'); return; }
 
         setStatus('Asking Gemini to read the message...', '#007bff');
@@ -178,7 +170,7 @@
 
             if (!response.ok) {
                 const errText = await response.text();
-                setStatus('Gemini API error (' + response.status + '). Check your key.', '#dc3545');
+                setStatus('Gemini API error. Check your key.', '#dc3545');
                 console.error('Gemini error:', errText);
                 return;
             }
@@ -199,7 +191,6 @@
                 items = JSON.parse(cleaned);
             } catch (parseErr) {
                 setStatus('Could not parse Gemini\'s response.', '#dc3545');
-                console.error('Parse error:', parseErr, cleaned);
                 return;
             }
 
@@ -228,9 +219,6 @@
         const text = document.getElementById('inputData').value.trim();
         if (!text) { setStatus('Paste a message first.', '#dc3545'); return; }
 
-        // Finds every "Week N ... $price" block regardless of spacing/punctuation.
-        // Captures everything between "Week N" and the dollar sign as description.
-        // "Total $x" lines are naturally excluded since they don't start with "Week".
         const found = [];
         const regex = /(Week\s+\d+[^$]*?)\$\s*(\d+(?:\.\d{1,2})?)/gi;
         let match;
