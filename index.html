@@ -133,100 +133,100 @@
         return desc.slice(0, m.index) + formatted + desc.slice(m.index + m[0].length);
     }
 
-    async function processWithAI() {
-        const openrouterApiKey = "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"; 
-        const text = document.getElementById('inputData').value.trim();
+async function processWithAI() {
+    // ⚠️ Security Reminder: Storing keys in frontend code is risky!
+    const openrouterApiKey = "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"; 
+    const text = document.getElementById('inputData').value.trim();
 
-        if (!text) { setStatus('Paste a message first.', '#dc3545'); return; }
-        setStatus('Processing with Meta Llama 3 (Primary Free)...', '#007bff');
+    if (!text) { setStatus('Paste a message first.', '#dc3545'); return; }
+    setStatus('Processing with Meta Llama 3.1 (Primary Free)...', '#007bff');
 
-        const prompt = 'Extract every taxi trip line item from the following text. ' +
-                       'Return a valid JSON array of objects where each object has keys "desc" and "price". ' +
-                       'Do not include any conversational text. Text:\n' + text;
+    const prompt = 'Extract every taxi trip line item from the following text. ' +
+                   'Return a valid JSON array of objects where each object has keys "desc" and "price". ' +
+                   'Do not include any conversational text. Text:\n' + text;
 
-        let rawResponseText = "";
-        let finalModelUsed = "Meta Llama 3";
+    let rawResponseText = "";
+    let finalModelUsed = "Meta Llama 3.1";
 
+    try {
+        // --- TRY PRIMARY MODEL (Llama 3.1 8B Free) ---
         try {
-            // --- TRY PRIMARY MODEL (Llama 3 8B) ---
-            try {
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${openrouterApiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': 'https://localhost', 
-                        'X-Title': 'Taxi Invoice Generator'
-                    },
-                    body: JSON.stringify({
-                        "model": "meta-llama/llama-3-8b-instruct:free", 
-                        "messages": [{ "role": "user", "content": prompt }],
-                        "temperature": 0.1
-                    })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok || data.error) {
-                    throw new Error(data.error?.message || `Status ${response.status}`);
-                }
-
-                rawResponseText = data.choices[0].message.content;
-
-            } catch (primaryError) {
-                // --- TRY BACKUP MODEL (Phi-3 Mini) ---
-                console.warn("Primary free model failed. Falling back. Error:", primaryError.message);
-                setStatus('Primary busy. Switching to Microsoft Phi-3 (Backup Free)...', '#ffc107');
-                finalModelUsed = "Microsoft Phi-3";
-
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${openrouterApiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': 'https://localhost', 
-                        'X-Title': 'Taxi Invoice Generator'
-                    },
-                    body: JSON.stringify({
-                        "model": "microsoft/phi-3-mini-128k-instruct:free", 
-                        "messages": [{ "role": "user", "content": prompt }],
-                        "temperature": 0.1
-                    })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok || data.error) {
-                    throw new Error(data.error?.message || `Status ${response.status}`);
-                }
-
-                rawResponseText = data.choices[0].message.content;
-            }
-
-            // --- PARSE AND INJECT EXTRACTED DATA ---
-            const cleaned = rawResponseText.replace(/```json|```/g, '').trim();
-            const items = JSON.parse(cleaned);
-
-            if (!Array.isArray(items)) {
-                throw new Error("AI output was not in expected array list format.");
-            }
-
-            items.forEach(item => {
-                if (item && item.desc && typeof item.price !== 'undefined') {
-                    lines.push({ d: String(item.desc).toUpperCase(), p: parseFloat(item.price) });
-                }
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${openrouterApiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://localhost', 
+                    'X-Title': 'Taxi Invoice Generator'
+                },
+                body: JSON.stringify({
+                    "model": "meta-llama/llama-3.1-8b-instruct:free", // Updated to 3.1 Free 
+                    "messages": [{ "role": "user", "content": prompt }],
+                    "temperature": 0.1
+                })
             });
 
-            setStatus(`Success (${finalModelUsed})! Added ${items.length} line item(s).`, '#28a745');
-            updateInvoice();
-            document.getElementById('inputData').value = '';
+            const data = await response.json();
 
-        } catch (err) {
-            setStatus('Error: ' + err.message, '#dc3545');
-            console.error("Pipeline Final Failure:", err);
+            if (!response.ok || data.error) {
+                throw new Error(data.error?.message || `Status ${response.status}`);
+            }
+
+            rawResponseText = data.choices[0].message.content;
+
+        } catch (primaryError) {
+            // --- TRY BACKUP MODEL (Google Gemma 2 9B Free) ---
+            console.warn("Primary free model failed. Falling back. Error:", primaryError.message);
+            setStatus('Primary busy. Switching to Google Gemma 2 (Backup Free)...', '#ffc107');
+            finalModelUsed = "Google Gemma 2";
+
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${openrouterApiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://localhost', 
+                    'X-Title': 'Taxi Invoice Generator'
+                },
+                body: JSON.stringify({
+                    "model": "google/gemma-2-9b-it:free", // Updated to a stable alternative free tier
+                    "messages": [{ "role": "user", "content": prompt }],
+                    "temperature": 0.1
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                throw new Error(data.error?.message || `Status ${response.status}`);
+            }
+
+            rawResponseText = data.choices[0].message.content;
         }
-    }
 
+        // --- PARSE AND INJECT EXTRACTED DATA ---
+        const cleaned = rawResponseText.replace(/```json|```/g, '').trim();
+        const items = JSON.parse(cleaned);
+
+        if (!Array.isArray(items)) {
+            throw new Error("AI output was not in expected array list format.");
+        }
+
+        items.forEach(item => {
+            if (item && item.desc && typeof item.price !== 'undefined') {
+                lines.push({ d: String(item.desc).toUpperCase(), p: parseFloat(item.price) });
+            }
+        });
+
+        setStatus(`Success (${finalModelUsed})! Added ${items.length} line item(s).`, '#28a745');
+        updateInvoice();
+        document.getElementById('inputData').value = '';
+
+    } catch (err) {
+        setStatus('Error: ' + err.message, '#dc3545');
+        console.error("Pipeline Final Failure:", err);
+    }
+}
     function processText() {
         const text = document.getElementById('inputData').value.trim();
         if (!text) { setStatus('Paste a message first.', '#dc3545'); return; }
