@@ -31,10 +31,11 @@
         .print-full { background: #007bff; width: 100%; margin-top: 15px; font-size: 16px; }
 
         @media print {
+            @page { margin: 10mm; size: auto; }
             .no-print { display: none !important; }
-            body { margin: 0; background: white; }
-            .container { box-shadow: none; max-width: 100%; width: 100%; padding: 0; }
-            #output { display: block !important; }
+            body { margin: 0; background: white; -webkit-print-color-adjust: exact; }
+            .container { box-shadow: none; max-width: 100%; width: 100%; padding: 0; border: none; }
+            #output { display: block !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
         }
     </style>
 </head>
